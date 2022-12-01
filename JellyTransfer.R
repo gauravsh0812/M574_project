@@ -64,6 +64,23 @@ uar_data_xtest <- uar_data[!sample, , , ]
 uar_data_ytrain <- matrix(2, nrow(uar_data_xtrain), 1)
 uar_data_ytest <- matrix(2, nrow(uar_data_xtest), 1)
 
+
+# Aurelia_aurita <- list.files('Documents/UofA/MATH574M/FinalProject/Jelly/Aurelia_aurita/')
+# um_data <- test_im
+# for (file in Aurelia_aurita) {
+#   file_path <- paste('Documents/UofA/MATH574M/FinalProject/Jelly/Aurelia_aurita/', sep="", file)
+#   #print(file_path)
+#   im <- as.array(load.image(file_path))
+#   dim(im) <- c(1, 75, 75, 3)
+#   um_data <- abind(um_data, im, along=1)
+# }
+# um_data <- um_data[2:301, , , ]
+# sample <- sample(c(TRUE, FALSE), nrow(um_data), replace=TRUE, prob=c(0.8, 0.2))
+# um_data_xtrain <- um_data[sample, , , ]
+# um_data_xtest <- um_data[!sample, , , ]
+# um_data_ytrain <- matrix(3, nrow(um_data_xtrain), 1)
+# um_data_ytest <- matrix(3, nrow(um_data_xtest), 1)
+
 #############################################################################################
 
 train_data <- abind(ua_data_xtrain, to_data_xtrain, uar_data_xtrain, along=1)
@@ -74,29 +91,19 @@ otest_label <- abind(ua_data_ytest, to_data_ytest, uar_data_ytest, along=1)
 train_label <- to_categorical(otrain_label, num_classes = 3)
 test_label <- to_categorical(otest_label, num_classes = 3)
 
+##############################################################################################
+
 
 ############################################################################
 
-model <- keras_model_sequential() %>% 
-  layer_conv_2d(filters = 32, kernel_size = c(3,3), activation = "relu", input_shape = c(75,75,3)) %>% 
-  layer_dropout(0.25) %>% 
-  layer_conv_2d(filters = 64, kernel_size = c(3,3), activation = "relu") %>% 
-  layer_dropout(0.25) %>% 
-  layer_max_pooling_2d(pool_size = c(2,2)) %>% 
-  layer_conv_2d(filters = 64, kernel_size = c(3,3), activation = "relu") %>%
-  layer_dropout(0.25) %>% 
-  layer_max_pooling_2d(pool_size = c(2,2)) 
+pretrained <- application_xception(weights = 'imagenet',
+                                   include_top = FALSE,
+                                   input_shape = c(75, 75, 3))
 
-summary(model)
-
-model %>% 
-  layer_flatten() %>% 
-  layer_dense(units = 256, activation = "relu") %>% 
-  layer_dense(units = 128, activation = "relu") %>% 
-  layer_dense(units = 64, activation = "relu") %>% 
+model <- keras_model_sequential() %>%
+  pretrained %>%
+  layer_flatten() %>%
   layer_dense(units = 3, activation = "softmax")
-
-summary(model)
 
 model %>% compile(
   optimizer = optimizer_adam(0.0001),
@@ -107,13 +114,14 @@ model %>% compile(
 history <- model %>% 
   fit(
     x = train_data, y = train_label,
-    epochs = 100,
+    epochs = 50,
     validation_split=0.2,
     use_multiprocessing=TRUE,
     callbacks = list(callback_early_stopping(monitor = "val_loss", patience = 10, restore_best_weights = TRUE))
   )
 
 plot(history)
+
 
 ############################################################################
 Prediction_data_train<- model %>% predict(train_data) %>% k_argmax()
